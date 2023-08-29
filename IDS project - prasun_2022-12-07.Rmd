@@ -1,0 +1,458 @@
+---
+title: "IDSProject-prasun"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document.
+
+```{r}
+# Installing necessary packages for the project.
+
+library(tidyverse)
+library(imputeTS)
+library(ggplot2)
+#install.packages("rio")
+library(rio)
+#install.packages("kernlab")
+library("kernlab")
+#install.packages("caret")
+library("caret")
+library("ggplot2")
+library("e1071")
+library("rpart")
+#install.packages("rpart.plot")
+library("rpart.plot")
+```
+
+```{r}
+# Loading the data into variable df.
+df <- read_csv("https://intro-datascience.s3.us-east-2.amazonaws.com/HMO_data.csv")
+summary(df)
+```
+
+```{r}
+# Checking for null values in the bmi variable of the dataframe by using is.na() function.
+sum(is.na(df$bmi))
+which(is.na(df$bmi))
+```
+
+```{r}
+# Filtered the BMI values which had null values. by using filter function from tidyverse with pipe.
+filtered_df <- df %>% filter(!(is.na(bmi)))
+sum(is.na(filtered_df$bmi))
+```
+
+```{r}
+# Checking for any null values if still present in the new filtered_df dataframe using is.na(0 function..
+
+sum(is.na(filtered_df$age))
+sum(is.na(filtered_df$children))
+sum(is.na(filtered_df$smoker))
+sum(is.na(filtered_df$location))
+sum(is.na(filtered_df$location_type))
+sum(is.na(filtered_df$education_level))
+sum(is.na(filtered_df$yearly_physical))
+sum(is.na(filtered_df$exercise))
+sum(is.na(filtered_df$married))
+sum(is.na(filtered_df$hypertension))
+sum(is.na(filtered_df$gender))
+sum(is.na(filtered_df$cost))
+```
+
+
+```{r}
+# Used na_interpolation  function to fill the null values.
+# na_interpolation uses value before and after to predict the null value in between these 2.
+filtered_df$hypertension <- na_interpolation(filtered_df$hypertension)
+sum(is.na(filtered_df$hypertension))
+```
+
+Step 2: Exploring the data
+```{r}
+str(filtered_df)
+# The data has attributes such as X, age, bmi, children, smoker, location type, education level, yearly physical,
+# exercise, married, hypertension, gender, cost.
+# These variables will assist in making prediction who is expensive and who is not expensive in medical costs.
+```
+
+```{r}
+glimpse(filtered_df)
+# Another way to explore and understand data and its data types by using glimpse() from tidyverse package.
+```
+
+```{r}
+summary(filtered_df)
+# Getting to know the data statistically. The min, max, mean, quartiles, class.
+```
+
+```{r}
+# Checking cost column in the data frame to create the expensive variable.
+# This will help us to determine expensive and not expensive people for medical costs.
+
+summary(filtered_df$cost)
+# 3rd Quartile is 4775 cost for medical which is 75th percentile.
+# We are considering the 75th percentile as the point to determine the expensive and not expensive.
+
+filtered_df$expensive <- ifelse(filtered_df$cost > 4775, 1, 0)
+# Created a new variable called expensive which shows the cost above $4775 as expensive and below as not expensive.
+```
+
+```{r}
+## note for abhishek: added a age group and plotted it
+summary(filtered_df$age)
+
+filtered_df$age_group <- ifelse((filtered_df$age >=18) & (filtered_df$age <=25), '18-25',
+                                ifelse((filtered_df$age >25) & (filtered_df$age <=40), '26-40',
+                                       ifelse((filtered_df$age >40) & (filtered_df$age <=60) , '41-60','60 & above')))
+```
+
+Step 3: Visualizing the data 
+```{r}
+plot1 <- ggplot(data = filtered_df) + aes(x=bmi, y=cost, color=education_level) + geom_point() 
+plot1
+# Creating scatterplot visualization for illustrating education level and medical cost.
+# Here, this graph illustrates the relationship between cost and bmi with respect to education level.
+```
+
+```{r}
+plot2 <- ggplot(data = filtered_df) + aes(x=bmi, y=cost, color=smoker) + geom_point() 
+plot2
+# Creating scatterplot visualization for illustrating bmi and medical cost. 
+# Here, this graph illustrates the relationship between cost and bmi with respect to being a smoker or not.
+# If someone is a smoker the medical cost for them tends to be higher when compared to a non-smoker.
+# But BMI is not effecting, is varing along the axis.
+```
+
+```{r}
+plot3 <- ggplot(data = filtered_df) + aes(x=age, y=cost, color=exercise) + geom_point() 
+plot3
+# Creating scatterplot visualization for illustrating age and medical cost. 
+# Here, this graph illustrates the relationship between age and cost with respect to being an active person or not.
+# If someone is a not-active(who does not do exercise) the medical cost for them tends to be higher when compared 
+# to a non-smoker.
+```
+
+```{r}
+plot4 <- ggplot(data = filtered_df) + aes(x=age, y=cost, color = yearly_physical) + geom_point() 
+plot4
+# Creating scatterplot visualization for illustrating age and medical cost. 
+# Here, this graph illustrates the relationship between age and cost with respect to being an active person or not.
+# If someone is not yearly physical the medical cost for them tends to be higher when compared to a yearly physical.
+# Also when age increase cost tends to increase.
+```
+
+```{r}
+plot5 <- ggplot(data = filtered_df) + aes(x=age, y=cost, color = married) + geom_point() 
+plot5
+# Creating scatterplot visualization for illustrating age and medical cost. 
+# Here, this graph illustrates the relationship between age and cost with respect to being an maried person or not.
+# Being married or not does not affect much and also when age increase cost tends to increase slightly.
+```
+
+```{r}
+plot6 <- ggplot(data = filtered_df) + aes(x=age, y=cost, color = gender) + geom_point() 
+plot6
+# Creating scatterplot visualization for illustrating age and medical cost. 
+# Here, this graph illustrates the relationship between age and cost with respect to gender.
+# Being a male or female does not affect much and also when age increase cost tends to increase slightly.
+```
+
+```{r}
+plot7 <- ggplot(data = filtered_df) + aes(x=age, y=cost, color = hypertension) + geom_point() 
+plot7
+# Creating scatterplot visualization for illustrating age and medical cost. 
+# Here, this graph illustrates the relationship between age and cost with respect to hypertension.
+# Being a person with hypertensionor not does not affect much and also when age increase cost tends to 
+# increase slightly.
+```
+
+```{r}
+plot8 <- ggplot(data = filtered_df) + aes(x=smoker) + geom_bar()
+plot8
+# Creating barchat visualization for illustrating how many are smoker and how many are not a smoker.
+```
+
+```{r}
+plot9 <- ggplot(data = filtered_df) + aes(x=location) + geom_bar()
+plot9
+# Creating barchart visualization for illustrating the count of people from different locations.
+# The locations are Connecticut, Maryland, Massachusetts, New Jersy, New York, Pennsylvania, Rhode Island.
+```
+
+```{r}
+plot10 <- ggplot(data = filtered_df) + aes(x=location_type) + geom_bar()
+plot10
+# Creating barchart visualization for illustrating the count of people coming from location type.
+# The location type are Country and Urban.
+```
+
+```{r}
+plot11 <- ggplot(data = filtered_df) + aes(x=age, y=cost, color=smoker) + geom_point() 
+plot11
+# Creating scatterplot visualization for illustrating bmi and medical cost. 
+# Here, this graph illustrates the relationship between cost and bmi with respect to being a smoker or not.
+# If someone is a smoker the medical cost for them tends to be higher when compared to a non-smoker.
+# But BMI is not effecting, is varing along the axis.
+```
+
+```{r}
+plot_age_group <- ggplot(data = filtered_df) + aes(x=age_group) + geom_bar() 
+plot_age_group
+# Creating a barchart based on various age groups.
+```
+
+```{r}
+dfplot <- filtered_df %>% group_by(location) %>% summarise(expensive)
+dfplot
+us <- map_data("state")
+us$state_name = tolower(us$region)
+dfplot$location <- tolower(dfplot$location)
+dfMerged <- merge(dfplot, us, all.y = TRUE, by.x="location", by.y = "state_name")
+dfMerged <- dfMerged %>% arrange(order)
+map <- ggplot(dfMerged)
+map <- map + aes(x=long, y=lat, group=group,fill=expensive) + geom_polygon(color = "black")
+map <- map + expand_limits(x=dfMerged$long, y=dfMerged$lat)
+map <- map + coord_map() + ggtitle("Expensive vs non- Expensive")
+map
+
+# The data is from Connecticut, Maryland, Massachusetts, New Jersy, New York, Pennsylvania & Rhode Island.
+# The 2 states from the data which have people with most expensive medical cost are Pennsylvania & New Jersey.
+# The states with less expensive people are New York, Connecticut, Maryland, Massachusetts & Rhode Island.
+```
+
+```{r}
+dfplot2 <- filtered_df %>% group_by(location) %>% summarise(bmi)
+dfplot2
+us <- map_data("state")
+us$state_name = tolower(us$region)
+dfplot2$location <- tolower(dfplot$location)
+dfMerged2 <- merge(dfplot2, us, all.y = TRUE, by.x="location", by.y = "state_name")
+dfMerged2 <- dfMerged2 %>% arrange(order)
+map2 <- ggplot(dfMerged2)
+map2 <- map2 + aes(x=long, y=lat, group=group,fill=bmi) + geom_polygon(color = "black")
+map2 <- map2 + expand_limits(x=dfMerged$long, y=dfMerged$lat)
+map2 <- map2 + coord_map() + ggtitle("BMI map")
+map2
+
+# The map illustrates the spread of people's BMI across the 5 U.S. states.
+```
+
+```{r}
+dfplot3 <- filtered_df %>% group_by(location) %>% summarise(cost)
+dfplot3
+us <- map_data("state")
+us$state_name = tolower(us$region)
+dfplot3$location <- tolower(dfplot$location)
+dfMerged3 <- merge(dfplot3, us, all.y = TRUE, by.x="location", by.y = "state_name")
+dfMerged3 <- dfMerged3 %>% arrange(order)
+map3 <- ggplot(dfMerged3)
+map3 <- map3 + aes(x=long, y=lat, group=group,fill=cost) + geom_polygon(color = "black")
+map3 <- map3 + expand_limits(x=dfMerged3$long, y=dfMerged3$lat)
+map3 <- map3 + coord_map() + ggtitle("Medical cost map")
+map3
+
+# The map illustrates the spread of people's individual medical costs across the 5 U.S. states.
+```
+
+Step 4: Preparing model 
+```{r}
+# creating a datafarme for prediction which does not contain cost attribute.
+df_model <- subset(filtered_df, select = c(X, age, bmi, children, smoker, location, location_type, education_level, yearly_physical,exercise, married, hypertension,gender,expensive ))
+
+# Creating linear model.
+lmOut1 <- lm(formula =expensive ~ ., data = df_model)
+summary(lmOut1)
+# Created a lm model with expensive as a outcome variable and rest as a predictor variables. 
+
+# We get to know based on this data the model has a 58.13% accuracuy based on all attributes.
+# Here, we also got to know the significance(p value) of all the predictors.
+# The most significant variables are age, bmi, smokeryes (dummy for yes), exerciseNot-Active (dummy for # Not-Active) and cost.
+# The least significant variables are children, locationMARYLAND, locationMASSACHUSETTS, locationNEW JERSEY, 
+# locationPENNSYLVANIA, locationRHODE ISLAND, location_typeUrban, education_levelMaster, education_levelNo College, 
+# education_levelPhD, yearly_physicalYes, marriedNot_Married, gendermale, hypertension and locationNEW YORK.
+```
+
+```{r} 
+# Now creating another lm model by using all of the significant predictor variables only.
+# These are the variables which we believe is essential and does affect in determining medical costs of a individual # as expensive or not.
+
+lmOut2 <- lm(expensive ~ age + bmi + children + smoker + exercise + hypertension, data = df_model)
+summary(lmOut2) # Displaying output of the linear model.
+# Now we see a model with 42.48% accuracy, which is 10% less than the first linear model.
+```
+
+```{r}
+# We now add 1 more variable which we think can be important as a predictor variable which is location.
+
+lmOut3 <- lm(expensive ~ age + bmi + children + smoker + exercise + hypertension + location, data = df_model)
+summary(lmOut3) # Displaying output of the linear model.
+# Now we see a model with 42.54% accuracy, which is almost similar to the first linear model.
+```
+
+```{r}
+str(filtered_df)
+# Checking data before we convert as factor datatype.
+```
+
+```{r}
+# Converting data as factors for Association Rules Mining.
+
+df_new <- data.frame(
+  X= as.factor(filtered_df$X),
+  age= as.factor(filtered_df$age),
+  bmi = as.factor(filtered_df$bmi),
+  children = as.factor(filtered_df$children),
+  smoker = as.factor(filtered_df$smoker),
+  location = as.factor(filtered_df$location),
+  location_type = as.factor(filtered_df$location_type),
+  education_level = as.factor(filtered_df$education_level),
+  yearly_physical = as.factor(filtered_df$yearly_physical),
+  exercise = as.factor(filtered_df$exercise),
+  married = as.factor(filtered_df$married),
+  hypertension = as.factor(filtered_df$hypertension),
+  gender = as.factor(filtered_df$gender),
+  expensive = as.factor(filtered_df$expensive)
+)
+str(df_new)
+# Checking data if it is converted to factor data type or not.
+```
+
+```{r}
+table(df_new$expensive)
+# This gives us how many people are expensive and how many are not.
+# Here we have 1875 people who is expensive and 5629 people as not expensive based on our analogy.
+
+prop.table(table(df_new$expensive))
+# This is the probability of expensive people which is 25% and not expensive people which is 75%.
+```
+
+```{r}
+library(arules)
+library(arulesViz)
+trans <- as(df_new, "transactions") # Converting data as a transaction datatype.
+
+inspect(trans[1:10]) # Checking the transaction data.
+```
+
+```{r}
+# Creating the association rules based on the most significant variables and high support & confidence numbers. 
+rules<- apriori(trans,
+parameter=list(supp=0.006, conf=0.31),
+control=list(verbose=F),
+appearance=list(default="lhs",rhs=("expensive=1")))
+```
+
+```{r}
+inspectDT(rules)
+# Displaying association rules.
+
+# Based on these association rules, we can see as age increases or if age is high medical costs are higher too.
+# And if the person is smoker chances of medical cost being higher.
+```
+Splitting data
+```{r}
+set.seed(100)
+df_model$expensive <- as.factor(df_model$expensive)
+trainlist <- createDataPartition(y=df_model$expensive ,p=.80,list=FALSE)
+# Here we create partition for data, so that we can create 2 set of data.
+
+trainset <- df_model[trainlist,] # This is for training the model. 
+testset <- df_model[-trainlist,] # This is for testing the model. 
+str(trainset)
+```
+
+```{r}
+# Creating SVM model for prediction.
+svmModel <- ksvm(expensive~., data = trainset, C=5, cross=3, prob.model=TRUE)
+
+# Predicitng values based on the svm model.
+svmPred <- predict(svmModel, testset)
+summary(svmPred) # Displaying prediction. 
+# There are 265 people in the test set who the model categorizes as expensive and 1235 as not expensive.
+
+table(svmPred, testset$expensive)
+# This shows the prediction the model makes.
+
+confusionMatrix(svmPred, testset$expensive)
+# Creating confusion matrix in order to understand if our classification model is getting right 
+# and what types of errors it is making.
+# The model has a 87.73% accuracy in predicting who is expensive and who is not with a confidence of 95%.
+# The model made 228 correct prediction of people who are expensive.
+# The model made 1088 correct prediction of people who are not expensive.
+# The model made 37 incorrect prediction of people who are expensive.
+# The model made 147 incorrect prediction of people who are not expensive.
+```
+
+```{r}
+# 2nd Svm model
+svmModel2 <- ksvm(expensive ~ age + bmi + children + smoker + exercise + hypertension, data = trainset, C=5, cross=3, prob.model=TRUE)
+
+svmPred2 <- predict(svmModel2, testset)
+summary(svmPred2)# Displaying predtiction.
+# There are 267 people in the test set who the model categorizes as expensive and 1233 as not expensive.
+
+table(svmPred2, testset$expensive)
+# This shows the predicition the model makes.
+
+confusionMatrix(svmPred2, testset$expensive)
+# Creating confusion matrix in order to understand if our classification model is getting right and what # types of errors it is making.
+# The model has a 87.87% accuracy in predicting who is expensive and who is not with a confidence of 95%.
+# The model made 230 correct prediction of people who are expensive.
+# The model made 1088 correct prediction of people who are not expensive.
+# The model made 145 incorrect prediction of people who are expensive.
+# The model made 37 incorrect prediction of people who are not expensive.
+```
+
+```{r}
+# 3rd Svm model
+svmModel3 <- ksvm(expensive ~ age + bmi + children + smoker + exercise + hypertension + location, data = trainset, C=5, cross=3, prob.model=TRUE)
+
+svmPred3 <- predict(svmModel3, testset)
+summary(svmPred3)# Displaying predtiction. 
+# There are 266 people in the test set who the model categorizes as expensive and 1234 as not expensive.
+
+table(svmPred3, testset$expensive)
+# This shows the predicition the model makes.
+
+confusionMatrix(svmPred3, testset$expensive)
+# Creating confusion matrix in order to understand if our classification model is getting right and what # types of errors it is making.
+# The model has a 87.8% accuracy in predicting who is expensive and who is not with a confidence of 95%.
+# The model made 229 correct prediction of people who are expensive.
+# The model made 1088 correct prediction of people who are not expensive.
+# The model made 146 incorrect prediction of people who are expensive.
+# The model made 37 incorrect prediction of people who are not expensive.
+```
+
+```{r}
+# Comparing all 3 svm model, the 2nd SVM model has the highest accuracy as prediction.
+```
+
+```{r}
+# creating to 2 datasets showing only expensive and non expensive people for medical costs.
+
+expensive_df<- filtered_df[filtered_df$expensive == 1,]
+expensive_df # This has only expensive people. 
+
+notexpensive_df<- filtered_df[filtered_df$expensive != 1,]
+notexpensive_df # This has only expensive people.
+```
+
+```{r}
+# Creating Tree model
+tree <- train(expensive ~ ., data=trainset,  method="rpart")
+tree # Displaying tree output
+
+rpart.plot(tree$finalModel) # Plotting the tree model.
+
+prp(tree$finalModel, faclen = 0, cex = 0.8, extra = 1)
+treepred <- predict(tree, testset) # Predicting the tree model.
+
+treematrix <- confusionMatrix(treepred, testset$expensive)
+treematrix # This gives us the matrix which has the accuracy of the 86.87%
+```

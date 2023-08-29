@@ -1,0 +1,28 @@
+
+```{r}
+# Loading the input data file for testing the model.
+testfile <- read_csv("inputdatafile.csv")
+str(testfile) # Checking the dataset structure.
+
+# Loading the solution data file for testing the model.
+solntestfile <- read_csv("solutiondatafile.csv")
+str(solntestfile) # Checking the dataset structure.
+
+solntestfile$expensive <- as.factor(solntestfile$expensive) #Preparing data for the model.
+```
+
+```{r}
+svmtestpred <- predict(svmModel2, testfile) # Predicitng the model accuracy based on the test file. 
+summary(svmtestpred) # Displaying the output.
+
+table(svmtestpred, solntestfile$expensive)
+
+confusionMatrix(svmtestpred , solntestfile$expensive)
+# Displaying the confusion matrix.
+```
+
+```{r}
+# Renaming the data for saving it.
+rmodel <- svmModel2 
+saveRDS(rmodel, file="my_model.rds") # Saving the model.
+```
